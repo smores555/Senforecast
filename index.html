@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seniority Forecast — Retirements Model</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <h1>Seniority Forecast — Retirements Model</h1>
+      <div class="inputs">
+        <label>Current Seniority #
+          <input type="number" id="sn" min="1" step="1" placeholder="e.g., 2670">
+        </label>
+        <label>Target Date
+          <input type="date" id="targetDate">
+        </label>
+        <button id="calc">Calculate</button>
+      </div>
+      <div class="note">Baseline list: <span id="asof">—</span>. Assumes mandatory retirement at 65; pilots retire on their listed <em>Month of Retire</em>.</div>
+    </header>
+
+    <section class="card">
+      <h2>Your Projection</h2>
+      <div class="grid">
+        <div><strong>Projected seniority on target date</strong><div id="proj">—</div></div>
+        <div><strong>Retirees ahead by that date</strong><div id="ahead">—</div></div>
+        <div><strong>Your retirement month</strong><div id="yourRetire">—</div></div>
+        <div><strong>Your seniority at retirement</strong><div id="atRetire">—</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Who retires before the target date (ahead of you)</h2>
+      <div class="table-wrap">
+        <table id="retList">
+          <thead>
+            <tr><th>SEN #</th><th>Name</th><th>Retire Month</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>
