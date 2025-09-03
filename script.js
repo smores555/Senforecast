@@ -22,7 +22,7 @@ function computeProjection(sn, targetISO){
   // Your retirement month
   const yourRetire = me.retire_month ? new Date(me.retire_month+'T00:00:00Z') : null;
 
-  // Your seniority at retirement: subtract everyone ahead who retires before or on your retire month
+  // Your seniority at retirement
   let seniorityAtRetire = null;
   if(yourRetire){
     const aheadByYourRetire = pilots.filter(p => p.seniority < sn && p.retire_month && new Date(p.retire_month+'T00:00:00Z') <= yourRetire).length;
@@ -32,7 +32,12 @@ function computeProjection(sn, targetISO){
   // List of retirees ahead before target
   const retireesList = ahead.sort((a,b)=> new Date(a.retire_month) - new Date(b.retire_month));
 
-  return { projected, retireesAhead, yourRetire, seniorityAtRetire, retireesList };
+  // ---- New base/seat position projection ----
+  const activeTotal = pilots.filter(p => !p.retire_month || new Date(p.retire_month+'T00:00:00Z') > target).length;
+  const basePosRank = projected;
+  const basePosPct = activeTotal ? ((basePosRank/activeTotal)*100).toFixed(1) : null;
+
+  return { projected, retireesAhead, yourRetire, seniorityAtRetire, retireesList, basePosRank, activeTotal, basePosPct };
 }
 
 function fmtDate(d){ if(!d) return '—'; const yyyy=d.getUTCFullYear(); const mm=String(d.getUTCMonth()+1).padStart(2,'0'); const dd=String(d.getUTCDate()).padStart(2,'0'); return `${yyyy}-${mm}-${dd}`; }
@@ -42,6 +47,10 @@ function render(res){
   document.getElementById('ahead').textContent = res.retireesAhead ?? '—';
   document.getElementById('yourRetire').textContent = fmtDate(res.yourRetire);
   document.getElementById('atRetire').textContent = res.seniorityAtRetire ?? '—';
+  document.getElementById('basePos').textContent =
+    (res.basePosRank && res.activeTotal)
+      ? `#${res.basePosRank} of ${res.activeTotal} (${res.basePosPct}%)`
+      : '—';
 
   const tb = document.querySelector('#retList tbody');
   tb.innerHTML='';
