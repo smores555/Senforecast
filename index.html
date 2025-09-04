@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Seniority Forecast — Retirements Model</title>
+  <title>Seniority Forecast — Dual Projection</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="container">
     <header class="hero">
-      <h1>Seniority Forecast — Retirements Model</h1>
+      <h1>Seniority Forecast — Dual Projection</h1>
       <div class="inputs">
         <label>Current Seniority #
           <input type="number" id="sn" min="1" step="1" placeholder="e.g., 2670">
@@ -19,30 +19,46 @@
         </label>
         <button id="calc">Calculate</button>
       </div>
-      <div class="note">Baseline list: <span id="asof">—</span>. Assumes mandatory retirement at 65; pilots retire on their listed <em>Month of Retire</em>.</div>
+      <div class="note">Master baseline as of <span id="asof">—</span>.</div>
     </header>
 
     <section class="card">
-      <h2>Your Projection</h2>
+      <h2>Your Projection (Master List)</h2>
       <div class="grid">
         <div><strong>Projected seniority on target date</strong><div id="proj">—</div></div>
         <div><strong>Retirees ahead by that date</strong><div id="ahead">—</div></div>
         <div><strong>Your retirement month</strong><div id="yourRetire">—</div></div>
         <div><strong>Your seniority at retirement</strong><div id="atRetire">—</div></div>
-        <div><strong>Base/Seat Position on target date</strong><div id="basePos">—</div></div>
       </div>
     </section>
 
     <section class="card">
-      <h2>Who retires before the target date (ahead of you)</h2>
-      <div class="table-wrap">
-        <table id="retList">
-          <thead>
-            <tr><th>SEN #</th><th>Name</th><th>Retire Month</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+      <h2>Base / Seat Projection</h2>
+      <div class="row gap">
+        <div>
+          <label for="baseSel">Base</label><br/>
+          <select id="baseSel"></select>
+        </div>
+        <div>
+          <label for="seatSel">Seat</label><br/>
+          <select id="seatSel"></select>
+        </div>
       </div>
+      <div class="grid">
+        <div><strong>Position on target date</strong><div id="basePos">—</div></div>
+        <div><strong>Active headcount on target date</strong><div id="baseActive">—</div></div>
+      </div>
+      <details class="mt">
+        <summary>Who retires ahead of you in this base/seat before the target date</summary>
+        <div class="table-wrap">
+          <table id="baseRetList">
+            <thead>
+              <tr><th>SEN #</th><th>Retire Month</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
     </section>
   </main>
   <script src="script.js"></script>
