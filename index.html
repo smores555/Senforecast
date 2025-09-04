@@ -1,66 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Seniority Forecast — Dual Projection</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <title>Pilot Upgrade Forecast</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+    h3 { margin-top: 30px; }
+  </style>
 </head>
 <body>
-  <main class="container">
-    <header class="hero">
-      <h1>Seniority Forecast — Dual Projection</h1>
-      <div class="inputs">
-        <label>Current Seniority #
-          <input type="number" id="sn" min="1" step="1" placeholder="e.g., 2670">
-        </label>
-        <label>Target Date
-          <input type="date" id="targetDate">
-        </label>
-        <button id="calc">Calculate</button>
-      </div>
-      <div class="note">Master baseline as of <span id="asof">—</span>.</div>
-    </header>
+  <img src="alaska-logo.jpeg" alt="Alaska Airlines" style="height:60px; display:block; margin:0 auto 20px auto;">
+  <h2>Pilot Seniority Tool</h2>
 
-    <section class="card">
-      <h2>Your Projection (Master List)</h2>
-      <div class="grid">
-        <div><strong>Projected seniority on target date</strong><div id="proj">—</div></div>
-        <div><strong>Retirees ahead by that date</strong><div id="ahead">—</div></div>
-        <div><strong>Your retirement month</strong><div id="yourRetire">—</div></div>
-        <div><strong>Your seniority at retirement</strong><div id="atRetire">—</div></div>
-      </div>
-    </section>
+  <!-- Existing UI would go here -->
 
-    <section class="card">
-      <h2>Base / Seat Projection</h2>
-      <div class="row gap">
-        <div>
-          <label for="baseSel">Base</label><br/>
-          <select id="baseSel"></select>
-        </div>
-        <div>
-          <label for="seatSel">Seat</label><br/>
-          <select id="seatSel"></select>
-        </div>
-      </div>
-      <div class="grid">
-        <div><strong>Position on target date</strong><div id="basePos">—</div></div>
-        <div><strong>Active headcount on target date</strong><div id="baseActive">—</div></div>
-      </div>
-      <details class="mt">
-        <summary>Who retires ahead of you in this base/seat before the target date</summary>
-        <div class="table-wrap">
-          <table id="baseRetList">
-            <thead>
-              <tr><th>SEN #</th><th>Retire Month</th></tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </details>
-    </section>
-  </main>
-  <script src="script.js?v=10"></script>
+  <div id="fo-eligibility"></div>
+
+  <script src="script.js"></script>
+  <script src="fo-eligibility.js"></script>
+  <script>
+    renderFOEligibilityBlock('fo-eligibility');
+  </script>
 </body>
 </html>
