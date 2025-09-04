@@ -1,4 +1,6 @@
-// FO eligibility calculator
+// fo-eligibility.js — base-wide projected FO eligibility table
+// Rule: (most junior Captain date) + 18 months, per base
+
 async function loadJson(path){
   const r = await fetch(path);
   if(!r.ok) throw new Error('Missing ' + path);
@@ -15,7 +17,7 @@ function addMonthsISO(ymd, n){
 }
 function getCaptainDate(c){
   const keys = ['seatDate','awardDate','effectiveDate','hireDate','seniorityDate','doj','date'];
-  for(const k of keys){ if(c[k]) return c[k]; }
+  for(const k of keys){ if(c && c[k]) return c[k]; }
   return null;
 }
 function mostJuniorCaptainDate(captainRoster){
@@ -35,14 +37,15 @@ async function baseFOEligibilityDateFromFile(pathToCAJson){
 }
 async function computeAllBaseFOEligibility(index){
   const out = {};
-  const caCombos = index.combos.filter(c => c.seat === 'CA');
+  if(!index || !Array.isArray(index.combos)) return out;
+  const caCombos = index.combos.filter(c => c.seat === 'CA' && c.file);
   for(const c of caCombos){
     try{
       const date = await baseFOEligibilityDateFromFile(c.file);
       out[c.base] = date || '—';
     }catch(e){
-      console.warn('Error on', c.base, c.file, e);
-      out[c.base] = '—';
+      console.warn('FO addon error on', c?.base, c?.file, e);
+      out[c.base || 'UNKNOWN'] = '—';
     }
   }
   return out;
@@ -50,20 +53,22 @@ async function computeAllBaseFOEligibility(index){
 async function renderFOEligibilityBlock(containerId='fo-eligibility'){
   const el = document.getElementById(containerId);
   if(!el) return;
-
-  const INDEX = await loadJson('data/index.json');
+  let INDEX;
+  try{
+    INDEX = await loadJson('data/index.json');
+  }catch(e){
+    // Some users keep the file as index.json.txt in development; try fallback
+    try{ INDEX = await loadJson('data/index.json.txt'); }catch(_){ throw e; }
+  }
   const map = await computeAllBaseFOEligibility(INDEX);
-
-  const rows = Object.keys(map).sort().map(base => {
-    const date = map[base];
-    return `<tr><td>${base}</td><td>${date}</td></tr>`;
-  }).join('');
-
+  const bases = Object.keys(map).sort();
+  const rows = bases.map(base => `<tr><td>${base}</td><td>${map[base] || '—'}</td></tr>`).join('');
   el.innerHTML = `
-    <h3>Projected FO Upgrade Eligible Date</h3>
-    <table class="mini">
-      <thead><tr><th>Base</th><th>Date</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Base</th><th>Date</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 }
