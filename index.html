@@ -2,33 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Seniority Forecast — Dual Projection</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    .banner {background:#fee;border:1px solid #c66;border-radius:6px;padding:8px 12px;margin:12px 0;color:#900;}
-    .controls {display:flex; gap:10px; align-items:center; margin:10px 0;}
-    .controls label {font-weight:600;}
-    .table-wrap {overflow:auto;}
-  </style>
 </head>
 <body>
-  <div id="dataError" class="banner" style="display:none"></div>
-
-  <img src="alaska-logo.jpeg" alt="Alaska Airlines" style="height:60px;display:block;margin:0 auto 16px auto;">
-
   <main class="container">
+    <img src="alaska-logo.jpeg" alt="Alaska Airlines" class="logo">
     <h1>Seniority Forecast — Dual Projection</h1>
-
-    <section class="card">
-      <h2>Your Projection (Master List)</h2>
-      <div id="masterProjection">
-        <div>Projected seniority on target date: <strong id="projOnDate">—</strong></div>
-        <div>Retirees ahead by that date: <strong id="retireesAhead">—</strong></div>
-        <div>Your retirement month: <strong id="yourRetireMonth">—</strong></div>
-        <div>Your seniority at retirement: <strong id="yourRetireRank">—</strong></div>
-      </div>
-    </section>
 
     <section class="card">
       <h2>Base / Seat Projection</h2>
@@ -38,19 +19,8 @@
         <label for="seatSelect">Seat</label>
         <select id="seatSelect"></select>
       </div>
-
       <div>
-        <div>Position on target date: <strong id="basePos">—</strong></div>
         <div>Active headcount on target date: <strong id="baseActive">—</strong></div>
-        <details style="margin-top:8px;">
-          <summary>Who retires ahead of you in this base/seat before the target date</summary>
-          <div class="table-wrap">
-            <table id="baseRetList">
-              <thead><tr><th>Seniority</th><th>Retire date</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </details>
       </div>
     </section>
 
@@ -60,15 +30,9 @@
     </section>
   </main>
 
-  <!-- Scripts: order matters -->
   <script src="script.js"></script>
   <script src="fo-eligibility.js"></script>
   <script>
-    // Show banner only if an error is set programmatically
-    const banner = document.getElementById('dataError');
-    if (banner && banner.textContent) { banner.style.display = 'block'; }
-
-    // FO table render
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => renderFOEligibilityBlock('fo-eligibility'));
     } else {
