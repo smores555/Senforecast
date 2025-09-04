@@ -1,1 +1,4 @@
 body{font-family:sans-serif;margin:20px} .card{border:1px solid #ccc;padding:10px;margin:10px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.row.gap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px}
