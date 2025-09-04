@@ -1,35 +1,14 @@
 {
-  "as_of": "2025-09-03",
   "combos": [
     {
-      "base": "SEA",
+      "base": "ANC",
       "seat": "CA",
-      "file": "SEA_CA.json"
+      "file": "ANC_CA.json"
     },
     {
-      "base": "SEA",
+      "base": "ANC",
       "seat": "FO",
-      "file": "SEA_FO.json"
-    },
-    {
-      "base": "PDX",
-      "seat": "CA",
-      "file": "PDX_CA.json"
-    },
-    {
-      "base": "PDX",
-      "seat": "FO",
-      "file": "PDX_FO.json"
-    },
-    {
-      "base": "SFO",
-      "seat": "CA",
-      "file": "SFO_CA.json"
-    },
-    {
-      "base": "SFO",
-      "seat": "FO",
-      "file": "SFO_FO.json"
+      "file": "ANC_FO.json"
     },
     {
       "base": "LAX",
@@ -42,14 +21,34 @@
       "file": "LAX_FO.json"
     },
     {
-      "base": "ANC",
+      "base": "PDX",
       "seat": "CA",
-      "file": "ANC_CA.json"
+      "file": "PDX_CA.json"
     },
     {
-      "base": "ANC",
+      "base": "PDX",
       "seat": "FO",
-      "file": "ANC_FO.json"
+      "file": "PDX_FO.json"
+    },
+    {
+      "base": "SEA",
+      "seat": "CA",
+      "file": "SEA_CA.json"
+    },
+    {
+      "base": "SEA",
+      "seat": "FO",
+      "file": "SEA_FO.json"
+    },
+    {
+      "base": "SFO",
+      "seat": "CA",
+      "file": "SFO_CA.json"
+    },
+    {
+      "base": "SFO",
+      "seat": "FO",
+      "file": "SFO_FO.json"
     }
   ]
 }
