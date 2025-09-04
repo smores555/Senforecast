@@ -1,14 +1,15 @@
-// Base/Seat projection — EN# aware input, constant headcount, local progression
-// You can enter either: Seniority #  OR  EN/Employee #. We detect and map EN -> seniority.
+// Base/Seat projection — SENIORITY-ONLY input (no EN lookup), constant headcount
+// Enter your Seniority # in the top box. We'll use ONLY that number.
 //
-// How EN detection works:
-// 1) If the number exactly matches a 'seniority' in MASTER.pilots, we use it directly.
-// 2) Otherwise we try to find a pilot whose EN-like fields equal the number:
-//    fields tried: en, EN, emp_no, empNo, employee_number, employeeNumber, id
-//    If found, we take that pilot's seniority for all calculations.
-// 3) If MASTER missing, we'll also try to detect EN inside the selected base/seat roster.
+// What this does:
+// - Inserts you into the selected base/seat roster by comparing GLOBAL seniority.
+// - Headcount stays constant (retirees are backfilled by pilots junior to you).
+// - You move up only as seniors ahead of you in this base/seat retire by the target date.
+// - Shows position/percent now and on the target date.
+//
+// Required fields in rosters: each pilot should have 'seniority' and optionally 'retire_month' (or retireMonth/retire_date/retireDate).
 
-let INDEX=null, MASTER=null;
+let INDEX=null;
 
 function banner(){ let el=document.getElementById('dataError'); if(!el){ el=document.createElement('div'); el.id='dataError'; el.className='banner'; document.body.prepend(el);} return el; }
 function showError(msg){ const el=banner(); el.textContent=msg; el.style.display='block'; console.error('[Senforecast]', msg); }
@@ -18,9 +19,9 @@ async function loadJsonSafe(paths){
   for(const p of paths){
     try{
       const r=await fetch(p,{cache:'no-store'});
-      if(!r.ok){ console.warn('Fetch not ok:', p, r.status); continue; }
+      if(!r.ok) continue;
       return await r.json();
-    }catch(e){ console.warn('Fetch error:', p, e); }
+    }catch(e){}
   }
   throw new Error('Could not load: '+paths.join(', '));
 }
@@ -43,71 +44,37 @@ function inferRoster(data){
   return [];
 }
 function retireField(p){ return p?.retire_month ?? p?.retireMonth ?? p?.retire_date ?? p?.retireDate ?? null; }
-function num(v){ const n=Number(v); return Number.isFinite(n) ? n : null; }
-
-function findPilotByEN(arr, enValue){
-  if(!Array.isArray(arr)) return null;
-  const keys=['en','EN','emp_no','empNo','employee_number','employeeNumber','id'];
-  return arr.find(p => keys.some(k => String(p?.[k] ?? '') === String(enValue)));
-}
-
-function resolveSeniority(inputNumber, rosterOrNull){
-  const maybeSen = num(inputNumber);
-  if(maybeSen==null) return null;
-
-  // 1) Exact seniority match in MASTER
-  if(MASTER?.pilots){
-    const bySen = MASTER.pilots.find(p => num(p?.seniority) === maybeSen);
-    if(bySen) return maybeSen;
-    // 2) EN match in MASTER
-    const byEN = findPilotByEN(MASTER.pilots, maybeSen);
-    if(byEN && num(byEN.seniority)) return num(byEN.seniority);
-  }
-
-  // 3) If we have a roster, try EN match there
-  if(rosterOrNull){
-    const bySen = rosterOrNull.find(p => num(p?.seniority) === maybeSen);
-    if(bySen) return maybeSen;
-    const byEN  = findPilotByEN(rosterOrNull, maybeSen);
-    if(byEN && num(byEN.seniority)) return num(byEN.seniority);
-  }
-
-  // 4) Fall back to treating it as Seniority #
-  return maybeSen;
-}
-
+function n(v){ const x=Number(v); return Number.isFinite(x)?x:null; }
 function percentStr(numPos, den){ if(!den || !numPos) return '—'; const pct=(numPos/den)*100; const v=Math.round(pct*10)/10; return v.toFixed(1).replace(/\.0$/,'')+'%'; }
 
 function positionByGlobal(rosterSortedByGlobal, yourSen){
-  const ahead = rosterSortedByGlobal.filter(p => num(p?.seniority ?? 999999999) < yourSen);
+  const ahead = rosterSortedByGlobal.filter(p => n(p?.seniority ?? 999999999) < yourSen);
   return ahead.length + 1;
 }
 
-async function computeBaseSeatProjectionConstant(base, seat, inputNumber, targetDateStr){
+async function computeBaseSeatProjection(base, seat, yourSeniority, targetDateStr){
   const idx=(INDEX?.combos||[]).find(c=>c.base===base && c.seat===seat);
   if(!idx) throw new Error('No data file for '+base+' '+seat);
   const data = await loadJsonSafe(['data/'+idx.file]);
   const roster = inferRoster(data);
-  const headcount = roster.length;
+  const headcount = roster.length;  // constant
 
-  // Resolve user's seniority from input (supports EN or Seniority)
-  const yourSeniority = resolveSeniority(inputNumber, roster);
-  if(!yourSeniority) throw new Error('Could not resolve your Seniority # from input. Enter Seniority or EN.');
+  const yourSen = n(yourSeniority);
+  if(!yourSen) throw new Error('Enter a valid Seniority #.');
 
-  // Sort by GLOBAL seniority for deterministic insertion
-  const byGlobal = roster.slice().sort((a,b)=> (num(a?.seniority ?? 999999999)) - (num(b?.seniority ?? 999999999)));
+  // Sort by GLOBAL seniority
+  const byGlobal = roster.slice().sort((a,b)=> (n(a?.seniority ?? 999999999)) - (n(b?.seniority ?? 999999999)));
 
-  // Current position within this base/seat
-  const posNow = positionByGlobal(byGlobal, yourSeniority);
+  // Position now
+  const posNow = positionByGlobal(byGlobal, yourSen);
 
-  // Retirements ahead by target date (only those *ahead locally*)
+  // Retirements ahead by target date
   const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
   const aheadLocal = byGlobal.slice(0, Math.max(0, posNow-1));
   const retireesAheadList = aheadLocal.filter(p => {
     const rm = parseDate(retireField(p)); return rm && rm <= target;
   }).map(p => ({ seniority: p.seniority ?? '', retire_month: retireField(p) ?? '' }));
 
-  // Projected position on target date (constant headcount)
   const projectedPos = Math.max(1, posNow - retireesAheadList.length);
   const nowPct = percentStr(posNow, headcount);
   const projPct = percentStr(projectedPos, headcount);
@@ -115,33 +82,9 @@ async function computeBaseSeatProjectionConstant(base, seat, inputNumber, target
   return { headcount, posNow, projectedPos, nowPct, projPct, retireesAheadList };
 }
 
-function renderBaseSeatConstant(res){
-  const basePos = document.getElementById('basePos');
-  if(basePos){
-    basePos.textContent = `#${res.projectedPos} of ${res.headcount} (${res.projPct}) • now: #${res.posNow} (${res.nowPct})`;
-  }
-  const baseActive = document.getElementById('baseActive');
-  if(baseActive) baseActive.textContent = (res.headcount ?? '—');
-  const tbEl = document.getElementById('baseRetList');
-  if(tbEl){
-    let tb = tbEl.querySelector('tbody');
-    if(!tb){ tb=document.createElement('tbody'); tbEl.appendChild(tb); }
-    tb.innerHTML='';
-    for(const p of (res.retireesAheadList||[])){
-      const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${p.seniority ?? ''}</td><td>${p.retire_month ?? ''}</td>`;
-      tb.appendChild(tr);
-    }
-  }
-}
-
-(async function patchENAware(){
-  try{
-    INDEX = await loadJsonSafe(['data/index.json','data/index.json.txt']);
-  }catch(e){ /* ignore; existing script likely loads it too */ }
-  try{
-    MASTER = await loadJsonSafe(['data/data.json','data/data.json.txt']);
-  }catch(e){ /* optional */ }
+(function wireSeniorityOnly(){
+  // load index
+  loadJsonSafe(['data/index.json','data/index.json.txt']).then(idx => { INDEX = idx; }).catch(()=>{});
 
   const btn = document.getElementById('runBaseSeat');
   if(!btn) return;
@@ -150,13 +93,19 @@ function renderBaseSeatConstant(res){
 
   replacement.addEventListener('click', async ()=>{
     try{
-      const input = Number(document.getElementById('yourSeniority')?.value);
-      const d = document.getElementById('targetDate')?.value;
-      const baseSel = document.getElementById('baseSelect');
-      const seatSel = document.getElementById('seatSelect');
-      if(!input || !d){ showError('Enter Seniority # or EN #, and a target date.'); return; }
-      const res = await computeBaseSeatProjectionConstant(baseSel.value, seatSel.value, input, d);
-      renderBaseSeatConstant(res);
+      const yourSeniority = Number(document.getElementById('yourSeniority')?.value);
+      const targetDate = document.getElementById('targetDate')?.value;
+      const base = document.getElementById('baseSelect')?.value;
+      const seat = document.getElementById('seatSelect')?.value;
+      if(!yourSeniority || !targetDate){ showError('Enter Seniority # and a target date.'); return; }
+      const res = await computeBaseSeatProjection(base, seat, yourSeniority, targetDate);
+      // render
+      const basePos = document.getElementById('basePos');
+      if(basePos){ basePos.textContent = `#${res.projectedPos} of ${res.headcount} (${res.projPct}) • now: #${res.posNow} (${res.nowPct})`; }
+      const baseActive = document.getElementById('baseActive');
+      if(baseActive) baseActive.textContent = (res.headcount ?? '—');
+      const tbEl = document.getElementById('baseRetList');
+      if(tbEl){ let tb=tbEl.querySelector('tbody'); if(!tb){ tb=document.createElement('tbody'); tbEl.appendChild(tb);} tb.innerHTML=''; for(const p of (res.retireesAheadList||[])){ const tr=document.createElement('tr'); tr.innerHTML = `<td>${p.seniority ?? ''}</td><td>${p.retire_month ?? ''}</td>`; tb.appendChild(tr);} }
       hideError();
     }catch(err){ showError(err.message); }
   });
