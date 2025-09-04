@@ -1,28 +1,55 @@
-// Unified 'Run' — one click updates BOTH Master Projection and Base/Seat Projection
-// Assumes: seniority-only input, constant headcount model, and existing HTML ids.
-// IDs used: yourSeniority, targetDate, baseSelect, seatSelect, runMaster, runBaseSeat(optional),
-//           projOnDate, retireesAhead, yourRetireMonth, yourRetireRank,
-//           basePos, baseActive, baseRetList
-
+//
+// Patch: make Base/Seat projection move with target date by parsing retire dates like "Jul-26", "Sep-29", "Sept-29", "Mar-2028".
+// Also supports existing formats (YYYY-MM, M/D/YY, etc.).
+// Seniority-only input, constant headcount.
+//
+// IDs expected in HTML: yourSeniority, targetDate, baseSelect, seatSelect, runMaster (button),
+// projOnDate, retireesAhead, yourRetireMonth, yourRetireRank, basePos, baseActive, baseRetList
+//
 let INDEX=null, MASTER=null;
 
-// ---------- helpers ----------
 function banner(){ let el=document.getElementById('dataError'); if(!el){ el=document.createElement('div'); el.id='dataError'; el.className='banner'; document.body.prepend(el);} return el; }
 function showError(msg){ const el=banner(); el.textContent=msg; el.style.display='block'; console.error('[Senforecast]', msg); }
-function hideError(){ const el=document.getElementById('dataError'); if(el) el.style.display='none'; }
+function hideError(){ const el=document.getElementById('dataError'); if(el){ el.style.display='none'; } }
 async function loadJsonSafe(paths){ for(const p of paths){ try{ const r=await fetch(p,{cache:'no-store'}); if(!r.ok) continue; return await r.json(); }catch(_){}} throw new Error('Could not load: '+paths.join(', ')); }
 function n(v){ const x=Number(v); return Number.isFinite(x)?x:null; }
 
-// Flexible date parsing: supports YYYY-MM(-DD), M/D/YY, M/D/YYYY, YYYY/MM, MM-YYYY, MMM YYYY
+// --- robust date parser ---
 function parseDate(v){
   if(!v) return null;
   v=String(v).trim();
   let m;
+  // 1) ISO-ish: 2029-07 or 2029-07-01
   if((m=v.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/))) return new Date(+m[1], +m[2]-1, m[3]?+m[3]:1);
+  // 2) US: 7/1/29 or 7/1/2029
   if((m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/))){ let mm=+m[1], dd=+m[2], yy=+m[3]; if(yy<100) yy=yy>=70?1900+yy:2000+yy; return new Date(yy,mm-1,dd); }
+  // 3) YYYY/MM
   if((m=v.match(/^(\d{4})\/(\d{1,2})$/))) return new Date(+m[1], +m[2]-1, 1);
+  // 4) MM-YYYY
   if((m=v.match(/^(\d{1,2})-(\d{4})$/))) return new Date(+m[2], +m[1]-1, 1);
-  if((m=v.match(/^([A-Za-z]{3,})\s+(\d{4})$/))){ const months=['jan','feb','mar','apr','may','jun','jul','aug','sep','sept','oct','nov','dec']; const idx=months.indexOf(m[1].toLowerCase()); return new Date(+m[2], idx>-1? (idx>8?idx-1:idx):0, 1); }
+  // 5) "Jul-26" / "Sept-29" / "Mar-2028"
+  if((m=v.match(/^([A-Za-z]{3,5})[-\s](\d{2,4})$/))){
+    const mon = m[1].toLowerCase();
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','sept','oct','nov','dec'];
+    let idx = months.indexOf(mon);
+    if(idx === -1 && mon.startsWith('se')) idx = months.indexOf('sept'); // guard
+    idx = (idx<0)?0:idx;
+    let yy = +m[2];
+    if(yy<100) yy = yy>=70 ? 1900+yy : 2000+yy;
+    // Map 'sept' to month 8 (zero-based)
+    const monthIndex = (months[idx] === 'sept') ? 8 : idx;
+    return new Date(yy, monthIndex, 1);
+  }
+  // 6) "Jul 2029"
+  if((m=v.match(/^([A-Za-z]{3,})\s+(\d{4})$/))){
+    const mon = m[1].toLowerCase();
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','sept','oct','nov','dec'];
+    let idx = months.indexOf(mon);
+    if(idx === -1 && mon.startsWith('se')) idx = months.indexOf('sept');
+    idx = (idx<0)?0:idx;
+    const monthIndex = (months[idx] === 'sept') ? 8 : idx;
+    return new Date(+m[2], monthIndex, 1);
+  }
   return null;
 }
 function retireField(p){ return p?.retire_month ?? p?.retireMonth ?? p?.retire_date ?? p?.retireDate ?? null; }
@@ -31,7 +58,7 @@ function inferRoster(data){ if(Array.isArray(data)) return data; if(data?.pilots
 function groupByBase(index){ const m=new Map(); for(const c of (index.combos||[])){ if(!m.has(c.base)) m.set(c.base,[]); m.get(c.base).push(c);} for(const [b,arr] of m){ arr.sort((a,b)=> a.seat.localeCompare(b.seat) || (a.file||'').localeCompare(b.file||'')); } return m; }
 function fillSelect(el, vals){ el.innerHTML=''; for(const v of vals){ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o);} }
 
-// ---------- Master Projection ----------
+// --- Master Projection ---
 function computeMasterProjection(yourSeniority, targetDateStr){
   if(!MASTER?.pilots) throw new Error('Master list not found (data/data.json or .txt).');
   const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
@@ -49,7 +76,7 @@ function computeMasterProjection(yourSeniority, targetDateStr){
   return {projected, retireesAhead, yourRM, rankAtRet};
 }
 
-// ---------- Base/Seat Projection (seniority-only, constant headcount) ----------
+// --- Base/Seat Projection (seniority-only, constant headcount) ---
 async function computeBaseSeatProjection(base, seat, yourSeniority, targetDateStr){
   const idx = (INDEX?.combos||[]).find(c => c.base===base && c.seat===seat);
   if(!idx) throw new Error('No data file for '+base+' '+seat);
@@ -58,22 +85,16 @@ async function computeBaseSeatProjection(base, seat, yourSeniority, targetDateSt
   const headcount = roster.length; // constant
 
   const byGlobal = roster.slice().sort((a,b)=> (n(a?.seniority??1e9))-(n(b?.seniority??1e9)));
-  const posNowRaw = (function(){
-    const ahead = byGlobal.filter(p => n(p?.seniority??1e9) < yourSeniority);
-    return ahead.length + 1;
-  })();
-  const posNow = Math.max(1, Math.min(posNowRaw, Math.max(1, headcount)));
+  const aheadNow = byGlobal.filter(p => n(p?.seniority??1e9) < yourSeniority);
+  const posNow = aheadNow.length + 1;
 
   const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
-  const aheadLocal = byGlobal.slice(0, Math.max(0, posNowRaw-1));
-  const retireesAheadList = aheadLocal.filter(p => { const rm=parseDate(retireField(p)); return rm && rm<=target; })
-                                      .map(p => ({seniority:p.seniority ?? '', retire_month: retireField(p) ?? ''}));
-  const projectedPosRaw = posNowRaw - retireesAheadList.length;
-  const projectedPos = Math.max(1, Math.min(projectedPosRaw, Math.max(1, headcount)));
+  const retireesAheadList = aheadNow.filter(p => { const rm=parseDate(retireField(p)); return rm && rm<=target; })
+                                    .map(p => ({seniority:p.seniority ?? '', retire_month: retireField(p) ?? ''}));
+  const projectedPos = Math.max(1, posNow - retireesAheadList.length);
 
   const nowPct = percentStr(posNow, headcount);
   const projPct = percentStr(projectedPos, headcount);
-
   return { headcount, posNow, projectedPos, nowPct, projPct, retireesAheadList };
 }
 
@@ -91,7 +112,7 @@ function renderBaseSeat(res){
   if(tb){ tb.innerHTML=''; for(const p of (res.retireesAheadList||[])){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${p.seniority??''}</td><td>${p.retire_month??''}</td>`; tb.appendChild(tr);} }
 }
 
-// ---------- init & unified run ----------
+// --- init & unified run ---
 async function initApp(){
   try{ INDEX = await loadJsonSafe(['data/index.json','data/index.json.txt']); }catch(e){ showError('Cannot load data/index.json'); return; }
   try{ MASTER = await loadJsonSafe(['data/data.json','data/data.json.txt']); }catch(_){ /* optional */ }
@@ -108,37 +129,24 @@ async function initApp(){
     refreshSeats();
   }
 
-  // unify buttons: make runMaster do both; keep runBaseSeat optional
+  // unified run
   const runMaster = document.getElementById('runMaster');
   if(runMaster){
-    const handler = async () => {
+    runMaster.onclick = async () => {
       try{
         const s = n(document.getElementById('yourSeniority')?.value);
         const d = document.getElementById('targetDate')?.value;
         const base = document.getElementById('baseSelect')?.value;
         const seat = document.getElementById('seatSelect')?.value;
         if(!s || !d){ showError('Enter Seniority # and Target date.'); return; }
-
-        // Master (if MASTER loaded)
-        if(MASTER?.pilots){
-          const m = computeMasterProjection(s, d);
-          renderMaster(m);
-        }
-
-        // Base/Seat
-        if(base && seat){
-          const b = await computeBaseSeatProjection(base, seat, s, d);
-          renderBaseSeat(b);
-        } else {
-          showError('Pick a Base and Seat to compute the base/seat projection.');
-        }
+        if(MASTER?.pilots){ renderMaster(computeMasterProjection(s, d)); }
+        if(base && seat){ renderBaseSeat(await computeBaseSeatProjection(base, seat, s, d)); }
         hideError();
       }catch(err){ showError(err.message); }
     };
-    runMaster.onclick = handler;
   }
 
-  // Optional: make runBaseSeat call the same handler if present
+  // optional: wire runBaseSeat to same handler if present
   const runBS = document.getElementById('runBaseSeat');
   if(runBS){ runBS.onclick = () => runMaster?.click(); }
 }
