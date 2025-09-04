@@ -1,6 +1,54 @@
 {
   "combos": [
-    { "base": "SEA", "seat": "CA", "file": "SEA_CA.json" },
-    { "base": "PDX", "seat": "CA", "file": "PDX_CA.json" }
+    {
+      "base": "ANC",
+      "seat": "CA",
+      "file": "ANC_CA.json"
+    },
+    {
+      "base": "ANC",
+      "seat": "FO",
+      "file": "ANC_FO.json"
+    },
+    {
+      "base": "LAX",
+      "seat": "CA",
+      "file": "LAX_CA.json"
+    },
+    {
+      "base": "LAX",
+      "seat": "FO",
+      "file": "LAX_FO.json"
+    },
+    {
+      "base": "PDX",
+      "seat": "CA",
+      "file": "PDX_CA.json"
+    },
+    {
+      "base": "PDX",
+      "seat": "FO",
+      "file": "PDX_FO.json"
+    },
+    {
+      "base": "SEA",
+      "seat": "CA",
+      "file": "SEA_CA.json"
+    },
+    {
+      "base": "SEA",
+      "seat": "FO",
+      "file": "SEA_FO.json"
+    },
+    {
+      "base": "SFO",
+      "seat": "CA",
+      "file": "SFO_CA.json"
+    },
+    {
+      "base": "SFO",
+      "seat": "FO",
+      "file": "SFO_FO.json"
+    }
   ]
 }
