@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="dataError" class="banner" role="alert" aria-live="polite"></div>
+
   <main class="container">
     <img src="alaska-logo.jpeg" alt="Alaska Airlines" class="logo">
     <h1>Seniority Forecast — Dual Projection</h1>
@@ -19,6 +21,7 @@
         <label for="targetDate">Target date</label>
         <input id="targetDate" type="date">
         <button id="runMaster">Run</button>
+        <span id="runMasterStatus" class="small"></span>
       </div>
       <div>
         <div>Projected seniority on target date: <strong id="projOnDate">—</strong></div>
@@ -36,6 +39,7 @@
         <label for="seatSelect">Seat</label>
         <select id="seatSelect"></select>
         <button id="runBaseSeat">Calculate</button>
+        <span id="runBaseSeatStatus" class="small"></span>
       </div>
       <div>
         <div>Position on target date: <strong id="basePos">—</strong></div>

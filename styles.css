@@ -8,3 +8,4 @@ table{border-collapse:collapse;min-width:340px;width:100%}
 th,td{border:1px solid #ddd;padding:8px 10px}
 thead th{background:#f7f7f7}
 .banner{background:#fee;border:1px solid #c66;border-radius:6px;padding:8px 12px;margin:12px 0;color:#900;display:none}
+.small{color:#555;font-size:12px;margin-left:8px}
