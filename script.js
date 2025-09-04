@@ -1,3 +1,5 @@
+// Base/Seat projection fix: compute user's POSITION within the selected base/seat,
+// then apply retirements ahead in that base/seat by target date to show progression.
 let INDEX=null, MASTER=null;
 
 function banner(){ let el=document.getElementById('dataError'); if(!el){ el=document.createElement('div'); el.id='dataError'; el.className='banner'; document.body.prepend(el);} return el; }
@@ -28,6 +30,7 @@ function groupByBase(index){ const map=new Map(); for(const c of index.combos||[
 function fillSelect(el, vals){ el.innerHTML=''; for(const v of vals){ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o);} }
 function inferRoster(data){ if(Array.isArray(data)) return data; if(data&&Array.isArray(data.pilots)) return data.pilots; if(data&&Array.isArray(data.captains)) return data.captains; if(data&&Array.isArray(data.rows)) return data.rows; if(data&&Array.isArray(data.list)) return data.list; return []; }
 
+// ---- Master (unchanged minimal) ----
 function computeMasterProjection(yourSeniority, targetDateStr){
   if(!MASTER || !Array.isArray(MASTER.pilots)) throw new Error('Master list not found (data/data.json or .txt).');
   const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
@@ -45,19 +48,67 @@ function computeMasterProjection(yourSeniority, targetDateStr){
   return {projectedRank, retireesAheadByTarget, yourRetMonth, yourRankAtRet};
 }
 
+// ---- Base/Seat PROGRESSION fix ----
+function computePositionInRoster(rosterSortedBySeniority, yourSeniority){
+  // Position NOW (1-based) among this base/seat: count of pilots with seniority < yours + 1
+  const ahead = rosterSortedBySeniority.filter(p => (p.seniority||999999) < yourSeniority);
+  const posNow = ahead.length + 1;
+  return {posNow, aheadList: ahead};
+}
+
 async function computeBaseSeatProjection(base, seat, yourSeniority, targetDateStr){
   const combo = (INDEX.combos||[]).find(c=>c.base===base && c.seat===seat);
   if(!combo) throw new Error('No combo for '+base+' '+seat);
   const data = await loadJsonSafe(['data/'+combo.file]);
   const roster = inferRoster(data).slice().sort((a,b)=>(a.seniority||999999)-(b.seniority||999999));
+  const headcount = roster.length;
+
+  // Where you fall in this base/seat right now (by seniority)
+  const {posNow, aheadList} = computePositionInRoster(roster, yourSeniority);
+
+  // Who among that aheadList retires by target date
   const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
-  const retireesAheadList = roster.filter(p=>(p.seniority||999999)<yourSeniority)
-                                  .filter(p=>{const rm=parseDate(p.retire_month||p.retireMonth); return rm && rm<=target;})
-                                  .map(p=>({seniority:p.seniority, retire_month:(p.retire_month||p.retireMonth)}));
-  const projectedRank = yourSeniority - retireesAheadList.length;
-  return {activeTotal: roster.length, projectedRank, retireesAheadList};
+  const retireesAheadList = aheadList.filter(p => {
+    const rm = parseDate(p.retire_month || p.retireMonth);
+    return rm && rm <= target;
+  }).map(p => ({ seniority: p.seniority, retire_month: (p.retire_month || p.retireMonth) }));
+
+  // Your projected position in this base/seat on target date:
+  const projectedPos = Math.max(1, posNow - retireesAheadList.length);
+
+  return {
+    headcount,
+    posNow,
+    projectedPos,
+    retireesAheadList
+  };
 }
 
+function renderBaseSeat(res){
+  // Show "#X of Y (now)" and "#X of Y (on target date)"
+  const basePos = document.getElementById('basePos');
+  if(basePos){
+    const nowStr = (res.posNow ? `#${res.posNow}` : '—');
+    const projStr = (res.projectedPos ? `#${res.projectedPos}` : '—');
+    basePos.textContent = `${projStr} of ${res.headcount ?? '—'} (now: ${nowStr})`;
+  }
+  const baseActive = document.getElementById('baseActive');
+  if(baseActive) baseActive.textContent = (res.headcount ?? '—');
+
+  const tbEl = document.getElementById('baseRetList');
+  if(tbEl){
+    let tb = tbEl.querySelector('tbody');
+    if(!tb){ tb = document.createElement('tbody'); tbEl.appendChild(tb); }
+    tb.innerHTML='';
+    for(const p of (res.retireesAheadList||[])){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${p.seniority ?? ''}</td><td>${p.retire_month ?? ''}</td>`;
+      tb.appendChild(tr);
+    }
+  }
+}
+
+// ---- Bootstrapping / wiring ----
 async function initApp(){
   try{
     INDEX = await loadJsonSafe(['data/index.json','data/index.json.txt']);
@@ -65,9 +116,8 @@ async function initApp(){
 
   try{
     MASTER = await loadJsonSafe(['data/data.json','data/data.json.txt']);
-  }catch(e){ console.warn('MASTER missing (ok if you only use Base/Seat).'); }
+  }catch(e){ /* optional */ }
 
-  // Fill selects
   const byBase = groupByBase(INDEX);
   const baseSel = document.getElementById('baseSelect');
   const seatSel = document.getElementById('seatSelect');
@@ -76,13 +126,12 @@ async function initApp(){
   baseSel.addEventListener('change', refreshSeats);
   refreshSeats();
 
-  // Wire buttons
+  // Buttons
   document.getElementById('runMaster')?.addEventListener('click', ()=>{
-    setStatus('runMasterStatus', '…running');
     try{
       const s = parseInt(document.getElementById('yourSeniority').value,10);
       const d = document.getElementById('targetDate').value;
-      if(!s || !d){ showError('Enter your seniority # and a target date.'); setStatus('runMasterStatus',''); return; }
+      if(!s || !d){ showError('Enter your seniority # and a target date.'); return; }
       const r = computeMasterProjection(s, d);
       document.getElementById('projOnDate').textContent = '#'+r.projectedRank;
       document.getElementById('retireesAhead').textContent = r.retireesAheadByTarget;
@@ -90,25 +139,17 @@ async function initApp(){
       document.getElementById('yourRetireRank').textContent = r.yourRankAtRet;
       banner().style.display='none';
     }catch(err){ showError(err.message); }
-    setStatus('runMasterStatus', '');
   });
 
   document.getElementById('runBaseSeat')?.addEventListener('click', async ()=>{
-    setStatus('runBaseSeatStatus', '…running');
     try{
       const s = parseInt(document.getElementById('yourSeniority').value,10);
       const d = document.getElementById('targetDate').value;
-      if(!s || !d){ showError('Enter seniority + target date (top section).'); setStatus('runBaseSeatStatus',''); return; }
-      const baseSel = document.getElementById('baseSelect');
-      const seatSel = document.getElementById('seatSelect');
+      if(!s || !d){ showError('Enter seniority + target date (top section).'); return; }
       const res = await computeBaseSeatProjection(baseSel.value, seatSel.value, s, d);
-      // render
-      const basePos = document.getElementById('basePos'); if(basePos) basePos.textContent = (res.projectedRank ? '#'+res.projectedRank : '—');
-      const baseActive = document.getElementById('baseActive'); if(baseActive) baseActive.textContent = (res.activeTotal ?? '—');
-      const tbEl = document.getElementById('baseRetList'); if(tbEl){ let tb=tbEl.querySelector('tbody'); if(!tb){tb=document.createElement('tbody'); tbEl.appendChild(tb);} tb.innerHTML=''; for(const p of (res.retireesAheadList||[])){ const tr=document.createElement('tr'); tr.innerHTML = `<td>${p.seniority??''}</td><td>${p.retire_month??''}</td>`; tb.appendChild(tr);} }
+      renderBaseSeat(res);
       banner().style.display='none';
     }catch(err){ showError(err.message); }
-    setStatus('runBaseSeatStatus', '');
   });
 }
 
