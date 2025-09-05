@@ -142,3 +142,28 @@ async function initApp(){
 }
 
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', initApp); } else { initApp(); }
+
+// Added handler for "Calculate" button (Base/Seat)
+function attachRunBaseSeat(){
+  try{
+    const runBaseSeat = document.getElementById('runBaseSeat');
+    if (!runBaseSeat) return;
+    runBaseSeat.onclick = async () => {
+      try {
+        const s = n(document.getElementById('yourSeniority')?.value);
+        const d = document.getElementById('targetDate')?.value;
+        const base = document.getElementById('baseSelect')?.value;
+        const seat = document.getElementById('seatSelect')?.value;
+        if (!s || !d) { showError('Enter Seniority # and Target date.'); return; }
+        if (base && seat) { renderBaseSeat(await computeBaseSeatProjection(base, seat, s, d)); }
+        hideError();
+      } catch (err) { showError(err.message || String(err)); }
+    };
+  }catch(e){ console.error(e); }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', attachRunBaseSeat);
+} else {
+  attachRunBaseSeat();
+}
