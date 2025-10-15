@@ -33,7 +33,7 @@ html, body {
    Header
    ========================= */
 header {
-  background: linear-gradient(to right, var(--dark-navy), var(--mid-blue));
+  background: linear-gradient(to right, #002B40, #006EAD);
   color: white;
   text-align: center;
   padding: 40px 16px 30px;
