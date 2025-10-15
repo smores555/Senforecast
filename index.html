@@ -1,29 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Seniority Forecast — Dual Projection</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="dataError" class="banner" role="alert" aria-live="polite"></div>
-
-  <main class="container">
-    <img src="alaska-logo.jpeg" alt="Alaska Airlines" class="logo">
+  <header>
+    <img src="ala-mec-logo.png" alt="ALPA Alaska MEC" class="logo" />
     <h1>Seniority Forecast — Dual Projection</h1>
-
+  </header>
+  <main class="container">
     <section class="card">
       <h2>Your Projection (Master List)</h2>
       <div class="controls">
-        <label for="yourSeniority">Your seniority #</label>
-        <input id="yourSeniority" type="number" min="1" step="1" style="width:100px">
-        <label for="targetDate">Target date</label>
-        <input id="targetDate" type="date">
+        <div class="field">
+          <label for="yourSeniority">Your seniority #</label>
+          <input id="yourSeniority" type="number" inputmode="numeric" min="1" step="1" />
+        </div>
+        <div class="field">
+          <label for="targetDate">Target date</label>
+          <input id="targetDate" type="date" />
+        </div>
         <button id="runMaster">Run</button>
         <span id="runMasterStatus" class="small"></span>
       </div>
-      <div>
+      <div class="results">
         <div>Projected seniority on target date: <strong id="projOnDate">—</strong></div>
         <div>Retirees ahead by that date: <strong id="retireesAhead">—</strong></div>
         <div>Your retirement month: <strong id="yourRetireMonth">—</strong></div>
@@ -34,29 +37,67 @@
     <section class="card">
       <h2>Base / Seat Projection</h2>
       <div class="controls">
-        <label for="baseSelect">Base</label>
-        <select id="baseSelect"></select>
-        <label for="seatSelect">Seat</label>
-        <select id="seatSelect"></select>
-        <button id="runBaseSeat">Calculate</button>
-        <span id="runBaseSeatStatus" class="small"></span>
+        <div class="field">
+          <label for="baseSeat">Base / Seat</label>
+          <select id="baseSeat">
+            <option value="">Select base / seat</option>
+            <!-- your options -->
+          </select>
+        </div>
+        <button id="runSeat">Calculate</button>
+        <span id="runSeatStatus" class="small"></span>
       </div>
-      <div>
-        <div>Position on target date: <strong id="basePos">—</strong></div>
-        <div>Active headcount on target date: <strong id="baseActive">—</strong></div>
-        <details style="margin-top:8px;">
-          <summary>Who retires ahead of you in this base/seat before the target date</summary>
-          <div class="table-wrap">
-            <table id="baseRetList">
-              <thead><tr><th>Seniority</th><th>Retire month</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </details>
+      <div class="results">
+        <div>Position on target date: <strong id="posOnDate">—</strong></div>
+        <div>Active headcount on target date: <strong id="activeCount">—</strong></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Seniority</th><th>Retire month</th></tr>
+          </thead>
+          <tbody id="retireList">
+            <!-- rows -->
+          </tbody>
+        </table>
       </div>
     </section>
 
-    </main>
+    <section class="card">
+      <h2>FO Hire → Upgrade Projection</h2>
+      <div class="controls">
+        <div class="field">
+          <label for="foHire">FO Hire</label>
+          <input id="foHire" type="date" />
+        </div>
+        <div class="field">
+          <label for="upgradeDate">Upgrade Date</label>
+          <input id="upgradeDate" type="date" />
+        </div>
+        <button id="runUpgrade">Calculate</button>
+        <span id="runUpgradeStatus" class="small"></span>
+      </div>
+      <div class="results">
+        <div>Upgrade Seniority: <strong id="upgradeSeniority">—</strong></div>
+      </div>
+    </section>
 
-  <script src="script.js"></script></body>
+    <div class="banner" id="warningBanner">Something's off — check your inputs.</div>
+  </main>
+
+  <button id="backToTop" class="floating-btn">↑ Top</button>
+
+  <script src="senforecast.js"></script>
+  <script>
+    const btn = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        btn.classList.add('show');
+      } else {
+        btn.classList.remove('show');
+      }
+    });
+    btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  </script>
+</body>
 </html>
