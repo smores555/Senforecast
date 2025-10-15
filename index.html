@@ -7,11 +7,19 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- =========================
+       Header
+  ========================== -->
   <header>
-    <img src="ala-mec-logo.png" alt="ALPA Alaska MEC" class="logo" />
+    <img src="ala-mec-logo.png" alt="ALPA Alaska MEC" class="logo">
     <h1>Seniority Forecast — Dual Projection</h1>
   </header>
+
+  <!-- =========================
+       Main Content
+  ========================== -->
   <main class="container">
+    <!-- Master Projection -->
     <section class="card">
       <h2>Your Projection (Master List)</h2>
       <div class="controls">
@@ -34,59 +42,52 @@
       </div>
     </section>
 
+    <!-- Base / Seat Projection -->
     <section class="card">
       <h2>Base / Seat Projection</h2>
       <div class="controls">
         <div class="field">
-          <label for="baseSeat">Base / Seat</label>
-          <select id="baseSeat">
-            <option value="">Select base / seat</option>
-            <!-- your options -->
-          </select>
+          <label for="baseSelect">Base</label>
+          <select id="baseSelect"></select>
         </div>
-        <button id="runSeat">Calculate</button>
-        <span id="runSeatStatus" class="small"></span>
+        <div class="field">
+          <label for="seatSelect">Seat</label>
+          <select id="seatSelect"></select>
+        </div>
+        <button id="runBaseSeat">Calculate</button>
+        <span id="runBaseSeatStatus" class="small"></span>
       </div>
       <div class="results">
-        <div>Position on target date: <strong id="posOnDate">—</strong></div>
-        <div>Active headcount on target date: <strong id="activeCount">—</strong></div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>Seniority</th><th>Retire month</th></tr>
-          </thead>
-          <tbody id="retireList">
-            <!-- rows -->
-          </tbody>
-        </table>
+        <div>Position on target date: <strong id="basePos">—</strong></div>
+        <div>Active headcount on target date: <strong id="baseActive">—</strong></div>
+        <details style="margin-top:8px;">
+          <summary>Who retires ahead of you in this base/seat before the target date</summary>
+          <div class="table-wrap">
+            <table id="baseRetList">
+              <thead>
+                <tr><th>Seniority</th><th>Retire month</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
       </div>
     </section>
 
-    <section class="card">
-      <h2>FO Hire → Upgrade Projection</h2>
-      <div class="controls">
-        <div class="field">
-          <label for="foHire">FO Hire</label>
-          <input id="foHire" type="date" />
-        </div>
-        <div class="field">
-          <label for="upgradeDate">Upgrade Date</label>
-          <input id="upgradeDate" type="date" />
-        </div>
-        <button id="runUpgrade">Calculate</button>
-        <span id="runUpgradeStatus" class="small"></span>
-      </div>
-      <div class="results">
-        <div>Upgrade Seniority: <strong id="upgradeSeniority">—</strong></div>
-      </div>
-    </section>
-
-    <div class="banner" id="warningBanner">Something's off — check your inputs.</div>
+    <!-- Optional Banner -->
+    <div class="banner" id="warningBanner">
+      Something's off — check your inputs.
+    </div>
   </main>
 
+  <!-- =========================
+       Floating Back to Top
+  ========================== -->
   <button id="backToTop" class="floating-btn">↑ Top</button>
 
+  <!-- =========================
+       Scripts
+  ========================== -->
   <script src="senforecast.js"></script>
   <script>
     const btn = document.getElementById('backToTop');
