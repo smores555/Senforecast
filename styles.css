@@ -29,12 +29,11 @@ body {
    Header & Logo
    ========================= */
 header {
-  background: linear-gradient(to right, #002B40, #006EAD);
+  background: linear-gradient(to right, var(--light-blue), var(--navy-blue));
   color: var(--cloud-white);
   text-align: center;
   padding: 24px 16px;
   border-radius: 0 0 16px 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .logo {
