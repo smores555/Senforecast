@@ -160,3 +160,9 @@ thead th {
     font-size: 1.5rem;
   }
 }
+.instructions {
+  font-size: 14px;
+  color: var(--warm-gray);
+  margin: 8px 0 12px 0;
+  line-height: 1.4;
+}
