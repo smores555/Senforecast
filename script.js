@@ -1,12 +1,4 @@
-// Seniority Forecast + Retirements Tables/Projector
-// Works with:
-//  - data/index.json (lists each base/seat JSON file)
-//  - data/<base>_<seat>.json (rosters)
-//  - data/data.json (optional master list w/ retire dates)
-//  - data/retirements.json (aggregate retirements by base & year)
-
-let INDEX = null, MASTER = null, RETS = null;
-
+// ---------- Utilities ----------
 function banner(){
   let el = document.getElementById('dataError');
   if(!el){
@@ -20,19 +12,19 @@ function banner(){
 function showError(msg){ const el=banner(); el.textContent=msg; el.style.display='block'; console.error('[Senforecast]', msg); }
 function hideError(){ const el=document.getElementById('dataError'); if(el){ el.style.display='none'; } }
 
-async function loadJsonSafe(paths){
-  for(const p of paths){
+async function fetchJSON(urls){
+  for(const u of urls){
     try{
-      const r = await fetch(p, { cache: 'no-store' });
+      const r = await fetch(u, { cache: 'no-store' });
       if(!r.ok) continue;
       return await r.json();
     }catch(_){}
   }
-  throw new Error('Could not load: ' + paths.join(', '));
+  return null;
 }
-const n = (v)=> { const x = Number(v); return Number.isFinite(x) ? x : null; };
+const num = (v)=> { const x = Number(v); return Number.isFinite(x) ? x : null; };
 
-// --- Date parsing (handles "Dec-27", "Mar-28", "Sept-29", ISO-like, etc.) ---
+// ---------- Date parsing (robust to ISO, M/D/YYYY, "Dec-27", etc.) ----------
 function parseDate(v){
   if(!v) return null;
   v = String(v).trim();
@@ -63,109 +55,84 @@ function parseDate(v){
 
 const RETIRE_KEYS = ['retire_month','retireMonth','retire_date','retireDate'];
 function retireField(p){ for(const k of RETIRE_KEYS){ const v=p?.[k]; if(v) return v; } return null; }
-
-// ------- Helpers -------
-function percentStr(pos, den){ if(!den || !pos) return '—'; const v = Math.round(((pos/den)*100)*10)/10; return v.toFixed(1).replace(/\.0$/,'')+'%'; }
 function inferRoster(data){ if(Array.isArray(data)) return data; if(data?.pilots) return data.pilots; if(data?.captains) return data.captains; if(data?.rows) return data.rows; if(data?.list) return data.list; return []; }
-function groupByBase(index){
-  const m = new Map();
-  for(const c of (index.combos||[])){
-    if(!m.has(c.base)) m.set(c.base, []);
-    m.get(c.base).push(c);
+function percentStr(pos, den){ if(!den || !pos) return '—'; const v = Math.round(((pos/den)*100)*10)/10; return v.toFixed(1).replace(/\.0$/,'')+'%'; }
+function hideSection(id){ const el=document.getElementById(id); if(el) el.style.display='none'; }
+
+// ---------- Globals ----------
+let INDEX = null;     // data/index.json (optional)
+let MASTER = null;    // data/data.json
+let RETS = null;      // data/retirements.json (or derived)
+
+// ---------- Loaders ----------
+async function loadIndex(){ INDEX = await fetchJSON(['data/index.json','data/index.json.txt']); }
+async function loadMaster(){ MASTER = await fetchJSON(['data/data.json','data/data.json.txt']); }
+async function loadRetirementsRaw(){
+  const r = await fetchJSON(['data/retirements.json']);
+  return r && typeof r === 'object' ? r : null;
+}
+
+// ---------- Derivation from MASTER (fallback if retirements.json missing/empty) ----------
+function deriveRetirementsFromMaster(){
+  if(!MASTER?.pilots?.length) return null;
+  const pilots = MASTER.pilots;
+
+  // Totals by year
+  const byYear = new Map();
+  for(const p of pilots){
+    const d = parseDate(retireField(p));
+    if(!d) continue;
+    const y = d.getFullYear();
+    byYear.set(y, (byYear.get(y) || 0) + 1);
   }
-  for(const [b,arr] of m) arr.sort((a,b)=> a.seat.localeCompare(b.seat) || (a.file||'').localeCompare(b.file||''));
-  return m;
-}
-function fillSelect(el, vals){ el.innerHTML=''; for(const v of vals){ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o);} }
+  const years = [...byYear.keys()].sort((a,b)=>a-b);
 
-// ------- Master projection (if MASTER has retire dates) -------
-function computeMasterProjection(yourSeniority, targetDateStr){
-  if(!MASTER?.pilots) throw new Error('Master list not found (data/data.json or .txt).');
-  const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
+  // Build totals array + cumulative
+  let running = 0;
+  const totals = years.map(y => ({ year: y, retirements: byYear.get(y) || 0 }));
+  const cumulative = years.map(y => { running += (byYear.get(y) || 0); return { year: y, cumulative_retirements: running }; });
 
-  const pilots = MASTER.pilots.slice().sort((a,b)=> (n(a?.seniority??1e9))-(n(b?.seniority??1e9)));
-  const retireesAhead = pilots
-    .filter(p=> n(p?.seniority??1e9) < yourSeniority)
-    .filter(p=> { const rm=parseDate(retireField(p)); return rm && rm<=target; }).length;
+  // Optional: by base & seat, only if present in MASTER rows
+  const bases = new Set();
+  const byYearBase = {}; // { [year]: { [base]: N, total: N } }
+  let hasBaseSeat = false;
 
-  const projected = yourSeniority - retireesAhead;
-  const you = pilots.find(p => n(p?.seniority) === yourSeniority);
-  const yourRM = you ? (retireField(you) || '—') : '—';
+  for(const p of pilots){
+    const d = parseDate(retireField(p));
+    if(!d) continue;
+    const y = d.getFullYear();
+    const base = (p.base || p.Base || '').toString().toUpperCase();
+    const seat = (p.seat || p.Seat || '').toString().toUpperCase();
+    if(base && seat) hasBaseSeat = true;
+    if(base) bases.add(base);
 
-  let rankAtRet='—';
-  if(you && yourRM!=='—'){
-    const retDate=parseDate(yourRM);
-    const ahead=pilots
-      .filter(p=> n(p?.seniority??1e9) < yourSeniority)
-      .filter(p=> { const rm=parseDate(retireField(p)); return rm && rm<=retDate; }).length;
-    rankAtRet = yourSeniority - ahead;
-  }
-  return {projected, retireesAhead, yourRM, rankAtRet};
-}
-
-function renderMaster(res){
-  const proj = document.getElementById('projOnDate'); if(proj) proj.textContent = '#'+res.projected;
-  const ra = document.getElementById('retireesAhead'); if(ra) ra.textContent = res.retireesAhead;
-  const rm = document.getElementById('yourRetireMonth'); if(rm) rm.textContent = res.yourRM;
-  const rr = document.getElementById('yourRetireRank'); if(rr) rr.textContent = res.rankAtRet;
-}
-
-// ------- Base/Seat projection (uses per-base JSONs) -------
-async function computeBaseSeatProjection(base, seat, yourSeniority, targetDateStr){
-  const idx = (INDEX?.combos||[]).find(c => c.base===base && c.seat===seat);
-  if(!idx) throw new Error('No data file for '+base+' '+seat);
-  const data = await loadJsonSafe(['data/'+idx.file]);
-  const roster = inferRoster(data);
-  const headcount = roster.length;
-
-  const byGlobal = roster.slice().sort((a,b)=> (n(a?.seniority??1e9))-(n(b?.seniority??1e9)));
-  const aheadNow = byGlobal.filter(p => n(p?.seniority??1e9) < yourSeniority);
-  const posNow = aheadNow.length + 1;
-
-  const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
-  const retireesAhead = aheadNow.filter(p => { const rm=parseDate(retireField(p)); return rm && rm<=target; }).length;
-
-  const projectedPos = Math.max(1, posNow - retireesAhead);
-  const nowPct = percentStr(posNow, headcount);
-  const projPct = percentStr(projectedPos, headcount);
-
-  // Optional list render (if table present)
-  const listTbody = document.querySelector('#baseRetList tbody');
-  if(listTbody){
-    listTbody.innerHTML = '';
-    aheadNow
-      .map(p => ({ s: n(p?.seniority), d: retireField(p)}))
-      .filter(p => p.s)
-      .sort((a,b)=>a.s-b.s)
-      .forEach(p=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML = `<td>${p.s}</td><td>${p.d||'—'}</td>`;
-        listTbody.appendChild(tr);
-      });
+    if(!byYearBase[y]) byYearBase[y] = {};
+    if(base){ byYearBase[y][base] = (byYearBase[y][base] || 0) + 1; }
+    byYearBase[y].total = (byYearBase[y].total || 0) + 1;
   }
 
-  return { headcount, posNow, projectedPos, nowPct, projPct, retireesAhead };
-}
-function renderBaseSeat(res){
-  const basePos = document.getElementById('basePos');
-  if(basePos){ basePos.textContent = `#${res.projectedPos} of ${res.headcount} (${res.projPct}) • now: #${res.posNow} (${res.nowPct})`; }
-  const baseActive = document.getElementById('baseActive'); if(baseActive) baseActive.textContent = (res.headcount ?? '—');
+  const result = {
+    source: 'derived-from-data.json',
+    years,
+    bases: hasBaseSeat ? [...bases].sort() : [],
+    byYear: byYearBase,
+    totals,
+    cumulative
+  };
+  return result;
 }
 
-// ------- Retirements (tables + projector) -------
-async function loadRetirements(){
-  const r = await fetch('data/retirements.json?v=' + Date.now());
-  if(!r.ok) throw new Error('Missing data/retirements.json');
-  RETS = await r.json();
-  return RETS;
-}
+// ---------- Rendering: Retirements tables ----------
 function renderRetirementsByBase(){
   const head = document.getElementById('retByBaseHead');
   const body = document.getElementById('retByBaseBody');
   if(!head || !body || !RETS) return;
 
-  head.innerHTML = '<th>Year</th>';
+  // If we have no bases (e.g., MASTER lacks base/seat), hide the section.
   const bases = (RETS.bases || []).slice().sort();
+  if(!bases.length){ hideSection('by-base-year-section'); return; }
+
+  head.innerHTML = '<th>Year</th>';
   for(const b of bases) head.innerHTML += `<th>${b}</th>`;
   head.innerHTML += `<th>Total</th>`;
 
@@ -190,9 +157,12 @@ function renderRetirementTotals(){
     body.appendChild(tr);
   }
 }
+
+// ---------- Projector ----------
 function cumulativeThroughYear(targetYear){
+  if(!RETS?.cumulative) return 0;
   let sum = 0;
-  for(const row of (RETS.cumulative || [])){
+  for(const row of RETS.cumulative){
     if(row.year <= targetYear) sum = row.cumulative_retirements;
   }
   return sum;
@@ -230,15 +200,102 @@ function runProjector(){
   }
 }
 
-// ------- Init -------
-async function initApp(){
-  try{ INDEX  = await loadJsonSafe(['data/index.json','data/index.json.txt']); } catch(e){ showError('Cannot load data/index.json'); return; }
-  try{ MASTER = await loadJsonSafe(['data/data.json','data/data.json.txt']); } catch(_){ /* optional */ }
+// ---------- Master projection ----------
+function computeMasterProjection(yourSeniority, targetDateStr){
+  if(!MASTER?.pilots) throw new Error('Master list not found (data/data.json or .txt).');
+  const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
 
-  // Base/Seat selectors
-  const baseSel = document.getElementById('baseSelect');
-  const seatSel = document.getElementById('seatSelect');
-  if(baseSel && seatSel){
+  const pilots = MASTER.pilots.slice().sort((a,b)=> (num(a?.seniority??1e9))-(num(b?.seniority??1e9)));
+  const retireesAhead = pilots
+    .filter(p=> num(p?.seniority??1e9) < yourSeniority)
+    .filter(p=> { const rm=parseDate(retireField(p)); return rm && rm<=target; }).length;
+
+  const projected = yourSeniority - retireesAhead;
+  const you = pilots.find(p => num(p?.seniority) === yourSeniority);
+  const yourRM = you ? (retireField(you) || '—') : '—';
+
+  let rankAtRet='—';
+  if(you && yourRM!=='—'){
+    const retDate=parseDate(yourRM);
+    const ahead=pilots
+      .filter(p=> num(p?.seniority??1e9) < yourSeniority)
+      .filter(p=> { const rm=parseDate(retireField(p)); return rm && rm<=retDate; }).length;
+    rankAtRet = yourSeniority - ahead;
+  }
+  return {projected, retireesAhead, yourRM, rankAtRet};
+}
+function renderMaster(res){
+  const proj = document.getElementById('projOnDate'); if(proj) proj.textContent = '#'+res.projected;
+  const ra = document.getElementById('retireesAhead'); if(ra) ra.textContent = res.retireesAhead;
+  const rm = document.getElementById('yourRetireMonth'); if(rm) rm.textContent = res.yourRM;
+  const rr = document.getElementById('yourRetireRank'); if(rr) rr.textContent = res.rankAtRet;
+}
+
+// ---------- Base/Seat projection (uses per-base JSONs via index.json) ----------
+function groupByBase(index){
+  const m = new Map();
+  for(const c of (index?.combos||[])){
+    if(!m.has(c.base)) m.set(c.base, []);
+    m.get(c.base).push(c);
+  }
+  for(const [b,arr] of m) arr.sort((a,b)=> a.seat.localeCompare(b.seat) || (a.file||'').localeCompare(b.file||''));
+  return m;
+}
+function fillSelect(el, vals){ el.innerHTML=''; for(const v of vals){ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o);} }
+
+async function computeBaseSeatProjection(base, seat, yourSeniority, targetDateStr){
+  if(!INDEX?.combos?.length) throw new Error('No index.json found for base/seat rosters.');
+  const idx = INDEX.combos.find(c => c.base===base && c.seat===seat);
+  if(!idx) throw new Error('No data file for '+base+' '+seat);
+  const data = await fetchJSON(['data/'+idx.file]);
+  const roster = inferRoster(data);
+  const headcount = roster.length;
+
+  const byGlobal = roster.slice().sort((a,b)=> (num(a?.seniority??1e9))-(num(b?.seniority??1e9)));
+  const aheadNow = byGlobal.filter(p => num(p?.seniority??1e9) < yourSeniority);
+  const posNow = aheadNow.length + 1;
+
+  const target = parseDate(targetDateStr); if(!target) throw new Error('Pick a valid target date.');
+  const retireesAhead = aheadNow.filter(p => { const rm=parseDate(retireField(p)); return rm && rm<=target; }).length;
+
+  const projectedPos = Math.max(1, posNow - retireesAhead);
+  const nowPct = percentStr(posNow, headcount);
+  const projPct = percentStr(projectedPos, headcount);
+
+  // Optional list render (if table present)
+  const listTbody = document.querySelector('#baseRetList tbody');
+  if(listTbody){
+    listTbody.innerHTML = '';
+    aheadNow
+      .map(p => ({ s: num(p?.seniority), d: retireField(p)}))
+      .filter(p => p.s)
+      .sort((a,b)=>a.s-b.s)
+      .forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = `<td>${p.s}</td><td>${p.d||'—'}</td>`;
+        listTbody.appendChild(tr);
+      });
+  }
+
+  return { headcount, posNow, projectedPos, nowPct, projPct, retireesAhead };
+}
+function renderBaseSeat(res){
+  const basePos = document.getElementById('basePos');
+  if(basePos){ basePos.textContent = `#${res.projectedPos} of ${res.headcount} (${res.projPct}) • now: #${res.posNow} (${res.nowPct})`; }
+  const baseActive = document.getElementById('baseActive'); if(baseActive) baseActive.textContent = (res.headcount ?? '—');
+}
+
+// ---------- Init ----------
+async function initApp(){
+  // Load master + optional index + retirements
+  await loadMaster();
+  await loadIndex();
+
+  // Set up base/seat selectors if index exists
+  const baseSeatSection = document.getElementById('baseSeatSection');
+  if(INDEX?.combos?.length){
+    const baseSel = document.getElementById('baseSelect');
+    const seatSel = document.getElementById('seatSelect');
     const byBase = groupByBase(INDEX);
     const bases = [...byBase.keys()].sort();
     fillSelect(baseSel, bases);
@@ -249,22 +306,25 @@ async function initApp(){
     }
     baseSel.addEventListener('change', refreshSeats);
     refreshSeats();
+  } else {
+    // Hide the base/seat section if there is no index.json
+    if(baseSeatSection) baseSeatSection.style.display = 'none';
   }
 
-  // Buttons
+  // Hook buttons
   const run = document.getElementById('runMaster');
   if(run){
     run.onclick = async () => {
       try{
-        const s = n(document.getElementById('yourSeniority')?.value);
+        const s = num(document.getElementById('yourSeniority')?.value);
         const d = document.getElementById('targetDate')?.value;
         const base = document.getElementById('baseSelect')?.value;
         const seat = document.getElementById('seatSelect')?.value;
         if(!s || !d){ showError('Enter Seniority # and Target date.'); return; }
         if(MASTER?.pilots){ renderMaster(computeMasterProjection(s, d)); }
-        if(base && seat){ renderBaseSeat(await computeBaseSeatProjection(base, seat, s, d)); }
+        if(base && seat && INDEX?.combos?.length){ renderBaseSeat(await computeBaseSeatProjection(base, seat, s, d)); }
         hideError();
-      }catch(err){ showError(err.message); }
+      }catch(err){ showError(err.message || String(err)); }
     };
   }
 
@@ -272,28 +332,40 @@ async function initApp(){
   if(runBaseSeat){
     runBaseSeat.onclick = async () => {
       try{
-        const s = n(document.getElementById('yourSeniority')?.value);
+        const s = num(document.getElementById('yourSeniority')?.value);
         const d = document.getElementById('targetDate')?.value;
         const base = document.getElementById('baseSelect')?.value;
         const seat = document.getElementById('seatSelect')?.value;
         if(!s || !d){ showError('Enter Seniority # and Target date.'); return; }
-        if(base && seat){ renderBaseSeat(await computeBaseSeatProjection(base, seat, s, d)); }
+        if(base && seat && INDEX?.combos?.length){ renderBaseSeat(await computeBaseSeatProjection(base, seat, s, d)); }
         hideError();
       }catch(err){ showError(err.message || String(err)); }
     };
   }
 
-  // Retirements tables + projector
-  try{
-    await loadRetirements();
+  // Retirements: prefer static file, else derive from MASTER
+  let raw = await loadRetirementsRaw();
+  const emptyStatic = !raw || !Array.isArray(raw?.totals) || raw.totals.length === 0 || !Array.isArray(raw?.years) || raw.years.length === 0;
+  if(emptyStatic){
+    const derived = deriveRetirementsFromMaster();
+    if(derived){
+      RETS = derived; // use derived
+    } else {
+      // Nothing to show → hide both sections
+      hideSection('by-base-year-section');
+      hideSection('total-retirements-section');
+    }
+  }else{
+    RETS = raw;
+  }
+
+  if(RETS){
+    // Normalize years ascending
+    if(Array.isArray(RETS.years)) RETS.years.sort((a,b)=>a-b);
     renderRetirementsByBase();
     renderRetirementTotals();
     const projBtn = document.getElementById('runProjector');
     if(projBtn) projBtn.addEventListener('click', runProjector);
-  }catch(e){
-    console.error(e);
-    const b = document.getElementById('dataError');
-    if(b) b.textContent = 'Failed to load retirements.json';
   }
 }
 
