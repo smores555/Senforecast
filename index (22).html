@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Seniority Forecast</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Error banner your JS can toggle -->
+  <div id="dataError" class="banner" role="alert" aria-live="polite"></div>
+
+  <main class="container">
+    <!-- Optional logo -->
+    <img src="ala-mec-logo.png" alt="ALPA Alaska MEC" class="logo">
+    <h1>Seniority Forecast</h1>
+
+    <!-- ===== Your Seniority (master list mode if retire dates available) ===== -->
+    <section class="card">
+      <h2>Your Projection</h2>
+      <p class="instructions">
+        Enter your seniority number and a target date, then press <b>Run</b> to see projected seniority and retirees ahead by that date.
+      </p>
+      <div class="controls">
+        <label for="yourSeniority">Your seniority #</label>
+        <input id="yourSeniority" type="number" min="1" step="1" style="width:100px" inputmode="numeric">
+        <label for="targetDate">Target date</label>
+        <input id="targetDate" type="date">
+        <button id="runMaster">Run</button>
+        <span id="runMasterStatus" class="small"></span>
+      </div>
+      <div>
+        <div>Projected seniority on target date: <strong id="projOnDate">—</strong></div>
+        <div>Retirees ahead by that date: <strong id="retireesAhead">—</strong></div>
+        <div>Your retirement month: <strong id="yourRetireMonth">—</strong></div>
+        <div>Your seniority at retirement: <strong id="yourRetireRank">—</strong></div>
+      </div>
+    </section>
+
+    <!-- ===== Base / Seat Projection ===== -->
+    <section class="card">
+      <h2>Base / Seat Projection</h2>
+      <p class="instructions">
+        Pick a base and seat, then press <b>Calculate</b> to see your projected position and expected retirements ahead of you.
+      </p>
+      <div class="controls">
+        <label for="baseSelect">Base</label>
+        <select id="baseSelect"></select>
+        <label for="seatSelect">Seat</label>
+        <select id="seatSelect"></select>
+        <button id="runBaseSeat">Calculate</button>
+        <span id="runBaseSeatStatus" class="small"></span>
+      </div>
+      <div>
+        <div>Position on target date: <strong id="basePos">—</strong></div>
+        <div>Active headcount on target date: <strong id="baseActive">—</strong></div>
+        <details style="margin-top:8px;">
+          <summary>Show retirements list (if available)</summary>
+          <div class="table-wrap">
+            <table id="baseRetList">
+              <thead><tr><th>Seniority</th><th>Retire month</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ===== Retirements by Base & Year (tables) ===== -->
+    <section class="card">
+      <h2>Retirements by Base &amp; Year</h2>
+      <div class="table-wrap">
+        <table id="retByBase">
+          <thead>
+            <tr id="retByBaseHead"><th>Year</th></tr>
+          </thead>
+          <tbody id="retByBaseBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Total Retirements per Year</h2>
+      <div class="table-wrap">
+        <table id="retTotals">
+          <thead>
+            <tr><th>Year</th><th>Total Retirements</th></tr>
+          </thead>
+          <tbody id="retTotalsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== Company-wide Seniority Projector (uses yearly totals) ===== -->
+    <section class="card">
+      <h2>Seniority Projector (Company-wide)</h2>
+      <div class="inputs">
+        <label>Enter Your Seniority #
+          <input type="number" id="projSeniority" min="1" step="1" inputmode="numeric" style="width:120px;">
+        </label>
+        <label>Start Year
+          <input type="number" id="projStartYear" min="2024" step="1" style="width:120px;">
+        </label>
+        <button id="runProjector">Project</button>
+      </div>
+      <small>
+        Assumption: each year’s retirements are senior to you (best-case upward movement).
+      </small>
+      <div class="table-wrap">
+        <table id="projTable">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Retirements (year)</th>
+              <th>Cumulative Retirements</th>
+              <th>Projected Rank</th>
+              <th>Change vs Start</th>
+            </tr>
+          </thead>
+          <tbody id="projBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
