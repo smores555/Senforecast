@@ -11,7 +11,6 @@
   <div id="dataError" class="banner" role="alert" aria-live="polite"></div>
 
   <main class="container">
-    <!-- Optional logo -->
     <img src="ala-mec-logo.png" alt="ALPA Alaska MEC" class="logo">
     <h1>Seniority Forecast</h1>
 
@@ -38,7 +37,7 @@
     </section>
 
     <!-- ===== Base / Seat Projection ===== -->
-    <section class="card">
+    <section class="card" id="baseSeatSection">
       <h2>Base / Seat Projection</h2>
       <p class="instructions">
         Pick a base and seat, then press <b>Calculate</b> to see your projected position and expected retirements ahead of you.
@@ -66,11 +65,11 @@
       </div>
     </section>
 
-    <!-- ===== Retirements by Base & Year (tables) ===== -->
-    <section class="card">
+    <!-- ===== Retirements by Base & Year ===== -->
+    <section class="card" id="by-base-year-section">
       <h2>Retirements by Base &amp; Year</h2>
       <div class="table-wrap">
-        <table id="retByBase">
+        <table id="by-base-year-table">
           <thead>
             <tr id="retByBaseHead"><th>Year</th></tr>
           </thead>
@@ -79,10 +78,11 @@
       </div>
     </section>
 
-    <section class="card">
+    <!-- ===== Total Retirements per Year ===== -->
+    <section class="card" id="total-retirements-section">
       <h2>Total Retirements per Year</h2>
       <div class="table-wrap">
-        <table id="retTotals">
+        <table id="total-retirements-table">
           <thead>
             <tr><th>Year</th><th>Total Retirements</th></tr>
           </thead>
@@ -103,9 +103,7 @@
         </label>
         <button id="runProjector">Project</button>
       </div>
-      <small>
-        Assumption: each year’s retirements are senior to you (best-case upward movement).
-      </small>
+      <small>Assumption: each year’s retirements are senior to you (best-case upward movement).</small>
       <div class="table-wrap">
         <table id="projTable">
           <thead>
